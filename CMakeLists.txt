@@ -1,18 +1,19 @@
 # check c++11 / c++0x
 include(CheckCXXCompilerFlag)
-CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
-CHECK_CXX_COMPILER_FLAG("-std=c++0x" COMPILER_SUPPORTS_CXX0X)
+check_cxx_compiler_flag("-std=c++11" COMPILER_SUPPORTS_CXX11)
+check_cxx_compiler_flag("-std=c++0x" COMPILER_SUPPORTS_CXX0X)
 if(COMPILER_SUPPORTS_CXX11)
-    set(CMAKE_CXX_FLAGS "-std=c++11")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 elseif(COMPILER_SUPPORTS_CXX0X)
-    set(CMAKE_CXX_FLAGS "-std=c++0x")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
 else()
     message(FATAL_ERROR "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support. Please use a different C++ compiler.")
 endif()
 
 
+
 cmake_minimum_required(VERSION 2.8.3)
-project(optitrack_human)
+project(optitrack_person)
 
 set(ROS_DEPS
   roscpp
@@ -20,7 +21,9 @@ set(ROS_DEPS
 
 ## set of packages whose message types this package use
 set(MSG_DEP_SET
+  geometry_msgs
   spencer_tracking_msgs
+#  optitrack
 )
 
 #set(MSG_FILES
@@ -55,12 +58,11 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
   INCLUDE_DIRS 
     include
-#  LIBRARIES optitrack_human
+#  LIBRARIES optitrack_person
   CATKIN_DEPENDS
-    #message_runtime
+#    message_runtime
     ${ROS_DEPS} 
     ${MSG_DEP_SET} 
-    optitrack
 #  DEPENDS system_lib
 )
 
@@ -69,7 +71,7 @@ catkin_package(
 ## Build ##
 
 ## additional locations of header files
-## because cakin cannot depend on rosbuild!!
+# because cakin cannot depend on rosbuild!!
 include_directories(/home/hkhambha/openrobots/devel/include)
 
 ## include catking include directories
@@ -78,18 +80,18 @@ include_directories(
 )
 
 ## declare a cpp library
-# add_library(optitrack_human
-#   src/${PROJECT_NAME}/optitrack_human.cpp
+# add_library(optitrack_person
+#   src/${PROJECT_NAME}/optitrack_person.cpp
 # )
 
 ## declare a cpp executable
-add_executable(optitrack_human_node src/optitrack_human_node.cpp)
+add_executable(optitrack_person_node src/optitrack_person_node.cpp)
 
 ## cmake target dependencies of the executable/library
-# add_dependencies(optitrack_human_node optitrack_human_generate_messages_cpp)
+# add_dependencies(optitrack_person_node optitrack_person_generate_messages_cpp)
 
 ## libraries to link a library or executable target against
-target_link_libraries(optitrack_human_node
+target_link_libraries(optitrack_person_node
   ${catkin_LIBRARIES}
 )
 
@@ -98,38 +100,40 @@ target_link_libraries(optitrack_human_node
 ## Install ##
 
 ## executable scripts (python etc.) for installation
-# install(PROGRAMS
-#   scripts/my_python_script
-#   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-# )
+#install(PROGRAMS
+#  scripts/some.py
+#  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+#)
 
 ## executables and/or libraries for installation
-# install(TARGETS optitrack_human optitrack_human_node
-#   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-# )
+install(TARGETS optitrack_person_node
+  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
 
 ## cpp-header files for installation
-# install(DIRECTORY include/${PROJECT_NAME}/
-#   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-#   FILES_MATCHING PATTERN "*.h"
-#   PATTERN ".svn" EXCLUDE
-# )
+#install(DIRECTORY include/${PROJECT_NAME}/
+#  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+#  FILES_MATCHING PATTERN "*.h"
+#  PATTERN ".svn" EXCLUDE
+#)
 
 ## other files for installation (launch and bag files)
-# install(FILES
-#   # myfile1
-#   # myfile2
-#   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-# )
+install(FILES
+  scripts/connect_optitrack.tcl
+  scripts/receive_optitrack.sh
+  launch/optitrack.launch
+  launch/optitrack_person.launch
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+)
 
 
 
 ## Testing ##
 
 ## add catch based cpp test target
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_optitrack_human.cpp)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_optitrack_person.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()
