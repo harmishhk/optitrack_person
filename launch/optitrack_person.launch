@@ -1,0 +1,10 @@
+<launch>
+    <master auto="start"/>
+
+    <!-- start optitrack_person -->
+    <node pkg="optitrack_person" type="optitrack_person_node" name="optitrack_person_node" output="screen" required="true"/>
+    
+    <!-- start person_morse_publisher_node -->
+    <node pkg="person_tf_publisher" type="person_morse_publisher_node" name="person_morse_publisher_node" output="screen" required="true"/>
+
+</launch>
