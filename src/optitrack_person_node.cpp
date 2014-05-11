@@ -27,7 +27,7 @@
 #include <string>
 
 #include "ros/ros.h"
-#include "optitrack/or_pose_estimator_state.h"
+#include "optitrack_person/or_pose_estimator_state.h"
 #include "spencer_tracking_msgs/TrackedPersons.h"
 
 // #include "geometry_msgs/PointStamped.h"
@@ -64,12 +64,12 @@ public:
                         ROS_ERROR_STREAM_NAMED(NODE_NAME, "cannot find an id in topic: " << topic.name);
                         continue;
                     }
-                    
+
                     // subs.push_back(nh_.subscribe (topic.name, 1, &OptitrackPerson::callback, this));
-                    subs.push_back(nh_.subscribe<optitrack::or_pose_estimator_state>(topic.name, 1, boost::bind(&OptitrackPerson::callback, this, _1, id)));
+                    subs.push_back(nh_.subscribe<optitrack_person::or_pose_estimator_state>(topic.name, 1, boost::bind(&OptitrackPerson::callback, this, _1, id)));
 
                     // make map of id of last messages with empty pointers
-                    lastMsgs[id] = optitrack::or_pose_estimator_state::ConstPtr();
+                    lastMsgs[id] = optitrack_person::or_pose_estimator_state::ConstPtr();
 
                     ROS_DEBUG_STREAM_NAMED(NODE_NAME, "created subscriber for topic: " << topic.name);
                 }
@@ -110,7 +110,7 @@ public:
     }
 
     // callback for the optitrack body
-    void callback(const optitrack::or_pose_estimator_state::ConstPtr& msg, const int id)
+    void callback(const optitrack_person::or_pose_estimator_state::ConstPtr& msg, const int id)
     {
         if (msg->pos.size() != 0)
         {
@@ -135,7 +135,7 @@ private:  // class attributes
     ros::master::V_TopicInfo topics;
 
     ros::Timer publishTimer;
-    std::map<int, optitrack::or_pose_estimator_state::ConstPtr> lastMsgs;
+    std::map<int, optitrack_person::or_pose_estimator_state::ConstPtr> lastMsgs;
     uint64_t _track_id;
 
     bool getSubTopics(ros::master::V_TopicInfo& topics, const std::string& topic_base)

@@ -2,7 +2,7 @@
 <package>
   <name>optitrack_person</name>
     
-  <version>0.0.2</version>
+  <version>0.0.3</version>
     
   <description>detect personss from optitrack data and publish it as defined by spencer perception modules</description>
 
@@ -15,16 +15,16 @@
   <!-- <author email="harmish@laas.fr">harmish khambhaita</author> -->
 
   <buildtool_depend>catkin</buildtool_depend>
-    
+
   <!-- build_depend for packages needed at compile time: -->
-  <!--   <build_depend>message_generation</build_depend> -->
+  <build_depend>message_generation</build_depend>
   <build_depend>roscpp</build_depend>
   <build_depend>geometry_msgs</build_depend>
   <build_depend>spencer_tracking_msgs</build_depend>
   <build_depend>optitrack</build_depend>
 
   <!-- run_depend for packages needed at runtime: -->
-  <!--   <run_depend>message_runtime</run_depend> -->
+  <run_depend>message_runtime</run_depend>
   <run_depend>roscpp</run_depend>
   <run_depend>geometry_msgs</run_depend>
   <run_depend>spencer_tracking_msgs</run_depend>

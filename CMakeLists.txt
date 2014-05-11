@@ -26,8 +26,19 @@ set(MSG_DEP_SET
 #  optitrack
 )
 
-#set(MSG_FILES
-#)
+set(MSG_FILES
+  # these messages are copied from optitrack_genom, becasue optitrack_genom is built as a dry package
+  or_pose_estimator_motion.msg
+  or_pose_estimator_reference.msg
+  or_pose_estimator_state.msg
+  or_t3d_acc_cov.msg
+  or_t3d_acc.msg
+  or_t3d_pos_cov.msg
+  or_t3d_pos.msg
+  or_t3d_vel_cov.msg
+  or_t3d_vel.msg
+  or_time_ts.msg
+)
 
 #set(SRV_FILES
 #)
@@ -36,22 +47,22 @@ set(MSG_DEP_SET
 #)
 
 find_package(catkin REQUIRED COMPONENTS
-#  message_generation
+  message_generation
   ${ROS_DEPS}
   ${MSG_DEP_SET}
 )
 # find_package(Boost REQUIRED COMPONENTS system)
 
 ## add message, serviece and action files
-#add_message_files(DIRECTORY msg FILES ${MSG_FILES})
+add_message_files(DIRECTORY msg FILES ${MSG_FILES})
 #add_service_files(DIRECTORY srv FILES ${SRV_FILES})
 #add_action_files(DIRECTORY action FILES ${ACT_FILES})
 
 ## generate added messages and services with any dependencies listed here
-#generate_messages(
-#  DEPENDENCIES
-#  ${MSG_DEP_SET}
-#)
+generate_messages(
+  DEPENDENCIES
+  ${MSG_DEP_SET}
+)
 
 ## catkin specific configuration ##
 
@@ -60,9 +71,9 @@ catkin_package(
     include
 #  LIBRARIES optitrack_person
   CATKIN_DEPENDS
-#    message_runtime
-    ${ROS_DEPS} 
-    ${MSG_DEP_SET} 
+    message_runtime
+    ${ROS_DEPS}
+    ${MSG_DEP_SET}
 #  DEPENDS system_lib
 )
 
@@ -71,8 +82,8 @@ catkin_package(
 ## Build ##
 
 ## additional locations of header files
-# because cakin cannot depend on rosbuild!!
-include_directories(/home/hkhambha/openrobots/devel/include)
+# specific path because cakin cannot depend on rosbuild!!
+#include_directories(${HOME}/openrobots/install/include)
 
 ## include catking include directories
 include_directories(
@@ -88,7 +99,7 @@ include_directories(
 add_executable(optitrack_person_node src/optitrack_person_node.cpp)
 
 ## cmake target dependencies of the executable/library
-# add_dependencies(optitrack_person_node optitrack_person_generate_messages_cpp)
+add_dependencies(optitrack_person_node optitrack_person_generate_messages_cpp)
 
 ## libraries to link a library or executable target against
 target_link_libraries(optitrack_person_node
