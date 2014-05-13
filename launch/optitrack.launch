@@ -3,5 +3,4 @@
 
     <!-- start receive_optitrack -->
     <node pkg="optitrack_person" type="receive_optitrack.sh" args="$(find optitrack_person)/scripts/connect_optitrack.tcl" name="receive_optitrack" output="screen" required="true"/>
-
 </launch>
