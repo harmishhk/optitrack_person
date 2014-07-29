@@ -67,8 +67,8 @@ generate_messages(
 ## catkin specific configuration ##
 
 catkin_package(
-  INCLUDE_DIRS 
-    include
+#  INCLUDE_DIRS
+#    include
 #  LIBRARIES optitrack_person
   CATKIN_DEPENDS
     message_runtime
