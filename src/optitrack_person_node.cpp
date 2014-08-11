@@ -26,16 +26,19 @@
 #include <map>
 #include <string>
 
-#include "ros/ros.h"
-#include "optitrack_person/or_pose_estimator_state.h"
-#include "spencer_tracking_msgs/TrackedPersons.h"
+#include <ros/ros.h>
+#include <dynamic_reconfigure/server.h>
+#include <optitrack_person/OptitrackPersonConfig.h>
+#include <optitrack_person/or_pose_estimator_state.h>
+#include <spencer_tracking_msgs/TrackedPersons.h>
 
 // #include "geometry_msgs/PointStamped.h"
 
 class OptitrackPerson
 {
 public:
-    OptitrackPerson(ros::NodeHandle& nh, std::string& topic_base) : nh_(nh), topic_base_(topic_base)
+    OptitrackPerson(ros::NodeHandle& nh, std::string& topic_base, std::string& publish_topic) :
+    nh_(nh), topic_base_(topic_base), publish_topic_(publish_topic)
     {
         // get all topics from master
         if (ros::master::getTopics(topics))
@@ -85,24 +88,31 @@ public:
         }
 
         // todo: make this reconfigurable
-        std::string publish_topic = std::string(NODE_NAME) + "/" +std::string(PUBLISH_TOPIC);
-        
+        std::string full_publish_topic = std::string(NODE_NAME) + "/" + publish_topic_;
+
         if (subs.size()  != 0)
         {
             // create publisher of type TrackedPerson
-            pub = nh_.advertise<spencer_tracking_msgs::TrackedPersons>(publish_topic, 1);
+            pub = nh_.advertise<spencer_tracking_msgs::TrackedPersons>(full_publish_topic, 1);
 
             // create a publish timer
             publishTimer = nh_.createTimer(ros::Duration(PUBLISH_RATE), &OptitrackPerson::publishPersons, this);
 
-            ROS_DEBUG_STREAM_NAMED(NODE_NAME, "created publisher for topic: " << publish_topic);
+            ROS_DEBUG_STREAM_NAMED(NODE_NAME, "created publisher for topic: " << full_publish_topic);
         }
         else
         {
-            ROS_ERROR_STREAM_NAMED(NODE_NAME, "no persons found. \"" << publish_topic << "\" will not be published");
+            ROS_ERROR_STREAM_NAMED(NODE_NAME, "no persons found. \"" << full_publish_topic << "\" will not be published");
         }
+
+        // set up dynamic reconfigure server
+        dynamic_reconfigure::Server<optitrack_person::OptitrackPersonConfig> *dsrv_ =
+            new dynamic_reconfigure::Server<optitrack_person::OptitrackPersonConfig>(nh_);
+        dynamic_reconfigure::Server<optitrack_person::OptitrackPersonConfig>::CallbackType cb =
+            boost::bind(&OptitrackPerson::reconfigureCB, this, _1, _2);
+        dsrv_->setCallback(cb);
     }
-    
+
     // some message while destroying the class
     ~OptitrackPerson()
     {
@@ -127,7 +137,7 @@ public:
 
 private:  // class attributes
     ros::NodeHandle nh_;
-    std::string topic_base_;
+    std::string topic_base_, publish_topic_;
 
     std::vector<ros::Subscriber> subs;
     ros::Publisher pub;
@@ -137,6 +147,24 @@ private:  // class attributes
     ros::Timer publishTimer;
     std::map<int, optitrack_person::or_pose_estimator_state::ConstPtr> lastMsgs;
     uint64_t _track_id;
+
+    // re-configure the optitrack_person parameters from callback
+    void reconfigureCB(optitrack_person::OptitrackPersonConfig &config, uint32_t level)
+    {
+        // change timer rate
+        if(publishTimer)
+        {
+            if(config.publish_rate != 0)
+            {
+                publishTimer.setPeriod(ros::Duration(1/config.publish_rate));
+                publishTimer.start();
+            }
+            else
+            {
+                publishTimer.stop();
+            }
+        }
+    }
 
     bool getSubTopics(ros::master::V_TopicInfo& topics, const std::string& topic_base)
     {
@@ -217,10 +245,14 @@ int main(int argc, char **argv)
     ros::NodeHandle nh;
     ROS_DEBUG_STREAM_NAMED(NODE_NAME, "started " << NODE_NAME << " node");
 
+    // getting topic parameters
+    std::string optitrack_topic, publish_topic;
+    nh.param<std::string>("topic_base", optitrack_topic, TOPIC_BASE);
+    nh.param<std::string>("published_topic", publish_topic, PUBLISH_TOPIC);
+
     // initiazling OptitrackPerson class and passing the node handle to it
-    std::string topic = TOPIC_BASE;
-    OptitrackPerson optitrackPerson(nh, topic);
-    
+    OptitrackPerson optitrackPerson(nh, optitrack_topic, publish_topic);
+
     // look for sigint and start spinning the node
     signal(SIGINT, sigintHandler);
     ros::spin();

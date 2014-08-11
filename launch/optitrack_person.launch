@@ -1,6 +1,11 @@
 <launch>
     <master auto="start"/>
 
-    <!-- start optitrack_person -->
+    <!--  add static transform publisher  -->
+    <node pkg="tf" type="static_transform_publisher" name="optitrack_link" args="6.2 2.5 0 0 0 0 /map /optitrack 100"/>
+
+    <!--  start optitrack_person  -->
+    <!--  <param name="topic_base" type="str" value="/optitrack/bodies/person" />  -->
+    <!--  <param name="published_topic" type="str" value="tracked_persons" />  -->
     <node pkg="optitrack_person" type="optitrack_person_node" name="optitrack_person_node" output="screen" required="true"/>
 </launch>

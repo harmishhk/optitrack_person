@@ -17,6 +17,7 @@ project(optitrack_person)
 
 set(ROS_DEPS
   roscpp
+  dynamic_reconfigure
 )
 
 ## set of packages whose message types this package use
@@ -64,6 +65,11 @@ generate_messages(
   ${MSG_DEP_SET}
 )
 
+# add dynamic reconfigure configs
+generate_dynamic_reconfigure_options(
+  cfg/OptitrackPerson.cfg
+)
+
 ## catkin specific configuration ##
 
 catkin_package(
@@ -100,6 +106,9 @@ add_executable(optitrack_person_node src/optitrack_person_node.cpp)
 
 ## cmake target dependencies of the executable/library
 add_dependencies(optitrack_person_node optitrack_person_generate_messages_cpp)
+
+## build config headers
+add_dependencies(optitrack_person_node optitrack_person_gencfg)
 
 ## libraries to link a library or executable target against
 target_link_libraries(optitrack_person_node
