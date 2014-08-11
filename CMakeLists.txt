@@ -73,8 +73,8 @@ generate_dynamic_reconfigure_options(
 ## catkin specific configuration ##
 
 catkin_package(
-#  INCLUDE_DIRS
-#    include
+  INCLUDE_DIRS
+    include
 #  LIBRARIES optitrack_person
   CATKIN_DEPENDS
     message_runtime
@@ -92,6 +92,7 @@ catkin_package(
 #include_directories(${HOME}/openrobots/install/include)
 
 ## include catking include directories
+include_directories(include)
 include_directories(
   ${catkin_INCLUDE_DIRS}
 )
@@ -133,11 +134,11 @@ install(TARGETS optitrack_person_node
 )
 
 ## cpp-header files for installation
-#install(DIRECTORY include/${PROJECT_NAME}/
-#  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-#  FILES_MATCHING PATTERN "*.h"
-#  PATTERN ".svn" EXCLUDE
-#)
+install(DIRECTORY include/${PROJECT_NAME}/
+  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+  FILES_MATCHING PATTERN "*.h"
+  PATTERN ".svn" EXCLUDE
+)
 
 ## other files for installation (launch and bag files)
 install(FILES
