@@ -104,8 +104,9 @@ bool OptitrackPerson::subscribeToTopics(std::string topic_base)
                 lastMsgs[id] = optitrack_person::or_pose_estimator_state::ConstPtr();
 
                 ROS_DEBUG_STREAM_NAMED(NODE_NAME, "created subscriber for topic: " << topic.name);
+
+                result = true;
             }
-            result = true;
         }
         else
         {
