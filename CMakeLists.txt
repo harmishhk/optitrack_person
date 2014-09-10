@@ -17,6 +17,7 @@ project(optitrack_person)
 
 set(ROS_DEPS
   roscpp
+  tf
   dynamic_reconfigure
 )
 

@@ -168,23 +168,66 @@ void OptitrackPerson::publishPersons(const ros::TimerEvent& event)
         // check if the pointer is not null
         if (msg.second)
         {
-            spencer_tracking_msgs::TrackedPerson person;
+            // discard this reading if we received this person for the first time
+            // (for proper velocity calculations)
+            if (lastToLastMsgs.count(msg.first) != 0)
+            {
+                // proceed only if we've received any new data about this person
+                if (msg.second->ts.sec != lastToLastMsgs[msg.first]->ts.sec
+                    || msg.second->ts.nsec != lastToLastMsgs[msg.first]->ts.nsec)
+                {
+                    spencer_tracking_msgs::TrackedPerson person;
 
-            // put optitrack data in to person
-            person.track_id = msg.first;
-            person.pose.pose.position.x = msg.second->pos[0].x;
-            person.pose.pose.position.y = msg.second->pos[0].y;
-            person.pose.pose.position.z = msg.second->pos[0].z;
-            person.pose.pose.orientation.x = msg.second->pos[0].qx;
-            person.pose.pose.orientation.y = msg.second->pos[0].qy;
-            person.pose.pose.orientation.z = msg.second->pos[0].qz;
-            person.pose.pose.orientation.w = msg.second->pos[0].qw;
+                    // put optitrack data in to person
+                    person.track_id = msg.first;
+                    person.pose.pose.position.x = msg.second->pos[0].x;
+                    person.pose.pose.position.y = msg.second->pos[0].y;
+                    person.pose.pose.position.z = msg.second->pos[0].z;
+                    person.pose.pose.orientation.x = msg.second->pos[0].qx;
+                    person.pose.pose.orientation.y = msg.second->pos[0].qy;
+                    person.pose.pose.orientation.z = msg.second->pos[0].qz;
+                    person.pose.pose.orientation.w = msg.second->pos[0].qw;
 
-            // other information, fixed for now
-            person.is_occluded = false;
-            person.detection_id = person.track_id;
+                    // calculate linear and angular velocities
+                    auto posVec = tf::Transform(tf::Quaternion(lastToLastMsgs[msg.first]->pos[0].qx,
+                                                               lastToLastMsgs[msg.first]->pos[0].qy,
+                                                               lastToLastMsgs[msg.first]->pos[0].qz,
+                                                               lastToLastMsgs[msg.first]->pos[0].qw),
+                                                tf::Vector3(lastToLastMsgs[msg.first]->pos[0].x,
+                                                            lastToLastMsgs[msg.first]->pos[0].y,
+                                                            lastToLastMsgs[msg.first]->pos[0].z))
+                        .inverse()({msg.second->pos[0].x, msg.second->pos[0].y, msg.second->pos[0].z});
 
-            trackedPersons->tracks.push_back(person);
+                    double roll, pitch, yaw;
+                    tf::Matrix3x3(tf::Quaternion(lastToLastMsgs[msg.first]->pos[0].qx,
+                                                                lastToLastMsgs[msg.first]->pos[0].qy,
+                                                                lastToLastMsgs[msg.first]->pos[0].qz,
+                                                                lastToLastMsgs[msg.first]->pos[0].qw)
+                                                 .inverse() * tf::Quaternion(msg.second->pos[0].qx,
+                                                                             msg.second->pos[0].qy,
+                                                                             msg.second->pos[0].qz,
+                                                                             msg.second->pos[0].qw))
+                        .getRPY(roll, pitch, yaw);
+
+                    auto dt = (ros::Time(msg.second->ts.sec, msg.second->ts.nsec) -
+                           ros::Time(lastToLastMsgs[msg.first]->ts.sec,
+                                     lastToLastMsgs[msg.first]->ts.nsec)).toSec();
+                    person.twist.twist.linear.x = posVec[0] / dt;
+                    person.twist.twist.linear.y = posVec[1] / dt;
+                    person.twist.twist.linear.z = posVec[2] / dt;
+                    person.twist.twist.angular.x = roll / dt;
+                    person.twist.twist.angular.y = pitch / dt;
+                    person.twist.twist.angular.z = yaw / dt;
+
+                    // other information, fixed for now
+                    person.is_occluded = false;
+                    person.detection_id = person.track_id;
+
+                    trackedPersons->tracks.push_back(person);
+                }
+            }
+            // save current values for future velocity calculation
+            lastToLastMsgs[msg.first] = msg.second;
         }
     }
 

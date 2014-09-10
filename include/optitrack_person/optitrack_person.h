@@ -23,6 +23,7 @@
 #define PUBLISH_RATE 10
 
 #include <ros/ros.h>
+#include <tf/tf.h>
 #include <dynamic_reconfigure/server.h>
 
 #include <optitrack_person/OptitrackPersonConfig.h>
@@ -51,6 +52,8 @@ class OptitrackPerson
     // helper variables
     ros::master::V_TopicInfo topics;
     std::map<int, optitrack_person::or_pose_estimator_state::ConstPtr> lastMsgs;
+    std::map<int, optitrack_person::or_pose_estimator_state::ConstPtr> lastToLastMsgs;
+
     uint64_t _track_id;
 
     // function definitions
