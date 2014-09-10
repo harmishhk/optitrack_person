@@ -1,6 +1,9 @@
 <launch>
     <master auto="start"/>
 
+    <!-- set logging level -->
+    <!-- env name="ROSCONSOLE_CONFIG_FILE" value="$(find optitrack_person)/launch/custom_rosconsole.conf"/-->
+
     <!--  add static transform publisher  -->
     <node pkg="tf" type="static_transform_publisher" name="optitrack_link" args="6.2 2.5 0 0 0 0 /map /optitrack 100"/>
 
