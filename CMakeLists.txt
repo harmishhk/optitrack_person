@@ -23,6 +23,7 @@ set(ROS_DEPS
 
 ## set of packages whose message types this package use
 set(MSG_DEP_SET
+  std_msgs
   geometry_msgs
   spencer_tracking_msgs
 #  optitrack
@@ -105,6 +106,8 @@ include_directories(
 
 ## declare a cpp executable
 add_executable(optitrack_person_node src/optitrack_person_node.cpp)
+add_executable(optitrack_person_node_full src/optitrack_person_node_full.cpp)
+
 
 ## cmake target dependencies of the executable/library
 add_dependencies(optitrack_person_node optitrack_person_generate_messages_cpp)
@@ -116,7 +119,9 @@ add_dependencies(optitrack_person_node optitrack_person_gencfg)
 target_link_libraries(optitrack_person_node
   ${catkin_LIBRARIES}
 )
-
+target_link_libraries(optitrack_person_node_full
+  ${catkin_LIBRARIES}
+)
 
 
 ## Install ##
@@ -133,6 +138,11 @@ install(TARGETS optitrack_person_node
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
+install(TARGETS optitrack_person_node_full
+  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
 
 ## cpp-header files for installation
 install(DIRECTORY include/${PROJECT_NAME}/
@@ -143,13 +153,15 @@ install(DIRECTORY include/${PROJECT_NAME}/
 
 ## other files for installation (launch and bag files)
 install(FILES
-  scripts/connect_optitrack.tcl
-  scripts/receive_optitrack.sh
   launch/optitrack.launch
   launch/optitrack_person.launch
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-)
-
+  launch/optitrack_person_full.launch
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch)
+install(FILES
+  scripts/connect_optitrack.tcl
+  scripts/receive_optitrack.sh
+  PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/scripts)
 
 
 ## Testing ##

@@ -15,5 +15,6 @@
     <!--  <param name="published_topic" type="str" value="tracked_persons" />  -->
     <!--  <param name="optitrack_frame_id" type="str" value="optitrack" />  -->
     <param name="publish_rate" type="int" value="100" />
-    <node pkg="optitrack_person" type="optitrack_person_node" name="optitrack_person_node" output="screen" required="true"/>
+    <param name="publish_info" type="bool" value="true" />
+    <node pkg="optitrack_person" type="optitrack_person_node_full" name="optitrack_person_node_full" output="screen" required="true"/>
 </launch>
