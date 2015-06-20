@@ -38,8 +38,8 @@ publish_topic_(publish_topic), optitrack_frame_id_(optitrack_frame_id), publish_
 
     if (subs.size()  != 0)
     {
-        // create publisher of type TrackedHuman
-        pub = nh_.advertise<hanp_msgs::TrackedHumans>(full_publish_topic, 1);
+        // create publisher of type TrackedPerson
+        pub = nh_.advertise<spencer_tracking_msgs::TrackedPersons>(full_publish_topic, 1);
 
         // create a publish timer
         if(publish_rate_ > 0.0)
@@ -160,8 +160,8 @@ bool OptitrackPerson::getSubTopics(ros::master::V_TopicInfo& topics, const std::
 
 void OptitrackPerson::publishPersons(const ros::TimerEvent& event)
 {
-    // create trackedHumans message, on the heap
-    auto trackedHumans = new hanp_msgs::TrackedHumans();
+    // create trackedPersons message, on the heap
+    auto trackedPersons = new spencer_tracking_msgs::TrackedPersons();
 
     // loop through all messages in lastMsgs map
     for (auto msg : lastMsgs)
@@ -177,7 +177,7 @@ void OptitrackPerson::publishPersons(const ros::TimerEvent& event)
                 if (msg.second->ts.sec != lastToLastMsgs[msg.first]->ts.sec
                     || msg.second->ts.nsec != lastToLastMsgs[msg.first]->ts.nsec)
                 {
-                    hanp_msgs::TrackedHuman person;
+                    spencer_tracking_msgs::TrackedPerson person;
 
                     // put optitrack data in to person
                     person.track_id = msg.first;
@@ -221,7 +221,7 @@ void OptitrackPerson::publishPersons(const ros::TimerEvent& event)
                     person.twist.twist.angular.y = pitch_diff / dt;
                     person.twist.twist.angular.z = yaw_diff / dt;
 
-                    trackedHumans->tracks.push_back(person);
+                    trackedPersons->tracks.push_back(person);
                 }
             }
             // save current values for future velocity calculation
@@ -230,11 +230,11 @@ void OptitrackPerson::publishPersons(const ros::TimerEvent& event)
     }
 
     // add the header
-    trackedHumans->header.stamp = ros::Time::now();
-    trackedHumans->header.frame_id = optitrack_frame_id_;
+    trackedPersons->header.stamp = ros::Time::now();
+    trackedPersons->header.frame_id = optitrack_frame_id_;
 
-    // publish the trackedHumans message
-    pub.publish(*trackedHumans);
+    // publish the trackedPersons message
+    pub.publish(*trackedPersons);
 
     ROS_DEBUG_STREAM_NAMED(NODE_NAME, "published persons");
 }

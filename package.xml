@@ -20,13 +20,13 @@
   <build_depend>roscpp</build_depend>
   <build_depend>tf</build_depend>
   <build_depend>geometry_msgs</build_depend>
-  <build_depend>hanp_msgs</build_depend>
+  <build_depend>spencer_tracking_msgs</build_depend>
 
   <!-- run_depend for packages needed at runtime: -->
   <run_depend>message_runtime</run_depend>
   <run_depend>roscpp</run_depend>
   <run_depend>tf</run_depend>
   <run_depend>geometry_msgs</run_depend>
-  <run_depend>hanp_msgs</run_depend>
+  <run_depend>spencer_tracking_msgs</run_depend>
   <run_depend>optitrack</run_depend>
 </package>

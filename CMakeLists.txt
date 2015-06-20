@@ -12,7 +12,7 @@ set(ROS_DEPS
 ## set of packages whose message types this package use
 set(MSG_DEP_SET
   geometry_msgs
-  hanp_msgs
+  spencer_tracking_msgs
 #  optitrack
 )
 
