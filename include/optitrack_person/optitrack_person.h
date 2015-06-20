@@ -28,7 +28,7 @@
 
 #include <optitrack_person/OptitrackPersonConfig.h>
 #include <optitrack_person/or_pose_estimator_state.h>
-#include <spencer_tracking_msgs/TrackedPersons.h>
+#include <hanp_msgs/TrackedHumans.h>
 
 class OptitrackPerson
 {
