@@ -18,7 +18,6 @@ project(optitrack_person)
 set(ROS_DEPS
   roscpp
   tf
-  dynamic_reconfigure
 )
 
 ## set of packages whose message types this package use
@@ -42,33 +41,19 @@ set(MSG_FILES
   or_time_ts.msg
 )
 
-#set(SRV_FILES
-#)
-
-#set(ACT_FILES
-#)
-
 find_package(catkin REQUIRED COMPONENTS
   message_generation
   ${ROS_DEPS}
   ${MSG_DEP_SET}
 )
-# find_package(Boost REQUIRED COMPONENTS system)
 
 ## add message, serviece and action files
 add_message_files(DIRECTORY msg FILES ${MSG_FILES})
-#add_service_files(DIRECTORY srv FILES ${SRV_FILES})
-#add_action_files(DIRECTORY action FILES ${ACT_FILES})
 
 ## generate added messages and services with any dependencies listed here
 generate_messages(
   DEPENDENCIES
   ${MSG_DEP_SET}
-)
-
-# add dynamic reconfigure configs
-generate_dynamic_reconfigure_options(
-  cfg/OptitrackPerson.cfg
 )
 
 ## catkin specific configuration ##
@@ -88,20 +73,11 @@ catkin_package(
 
 ## Build ##
 
-## additional locations of header files
-# specific path because cakin cannot depend on rosbuild!!
-#include_directories(${HOME}/openrobots/install/include)
-
 ## include catking include directories
 include_directories(include)
 include_directories(
   ${catkin_INCLUDE_DIRS}
 )
-
-## declare a cpp library
-# add_library(optitrack_person
-#   src/${PROJECT_NAME}/optitrack_person.cpp
-# )
 
 ## declare a cpp executable
 add_executable(optitrack_person_node src/optitrack_person_node.cpp)
@@ -120,12 +96,6 @@ target_link_libraries(optitrack_person_node
 
 
 ## Install ##
-
-## executable scripts (python etc.) for installation
-#install(PROGRAMS
-#  scripts/some.py
-#  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-#)
 
 ## executables and/or libraries for installation
 install(TARGETS optitrack_person_node
@@ -149,15 +119,3 @@ install(FILES
   launch/optitrack_person.launch
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
-
-
-
-## Testing ##
-
-## add catch based cpp test target
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_optitrack_person.cpp)
-# if(TARGET ${PROJECT_NAME}-test)
-#   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
-# endif()
-
-# catkin_add_nosetests(test)
