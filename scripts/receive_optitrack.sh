@@ -5,7 +5,7 @@ control_c()
 {
     # wait a bit before dead-check
     sleep 1s
-    
+
     if ps -p $OPTITRACK_ROS_PID > /dev/null
     then
         echo "optitrack-ros is still running, now force killed"
@@ -13,7 +13,7 @@ control_c()
     else
         echo "stopped optitrack-ros"
     fi
-    
+
     if ps -p $GENOMIX_PID > /dev/null
     then
         echo "genomix is still running, now force killed"
@@ -21,7 +21,7 @@ control_c()
     else
         echo "stopped genomix"
     fi
-    
+
     if ps -p $TCL_PID > /dev/null
     then
         echo "genomix is still running, now force killed"
@@ -29,10 +29,10 @@ control_c()
     else
         echo "stopped eltclsh"
     fi
-    
+
   exit $?
 }
- 
+
 # trap keyboard interrupt (control-c), to send proper kill to signal to subprocesses
 trap control_c INT
 
@@ -64,6 +64,7 @@ GENOMIX_PID=$!
 sleep 1s
 echo "started genomix with PID=$GENOMIX_PID"
 
+sed -i "s/[0-9]\{1,3\}.[0-9]\{1,3\}.[0-9]\{1,3\}.[0-9]\{1,3\}/$2/g" $1
 TCL="eltclsh $1"
 $TCL >> .log_tcl &
 TCL_PID=$!
