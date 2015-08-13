@@ -97,14 +97,19 @@ install(TARGETS optitrack_person_node
 install(DIRECTORY include/${PROJECT_NAME}/
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
   FILES_MATCHING PATTERN "*.h"
-  PATTERN ".svn" EXCLUDE
 )
 
 ## other files for installation (launch and bag files)
+install(PROGRAMS
+  scripts/receive_optitrack.sh
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
 install(FILES
   scripts/connect_optitrack.tcl
-  scripts/receive_optitrack.sh
-  launch/optitrack.launch
-  launch/optitrack_person.launch
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/scripts
+)
+
+install(DIRECTORY launch/
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
 )
