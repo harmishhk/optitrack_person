@@ -189,36 +189,37 @@ void OptitrackPerson::publishPersons(const ros::TimerEvent& event)
                     person.pose.pose.orientation.z = msg.second->pos[0].qz;
                     person.pose.pose.orientation.w = msg.second->pos[0].qw;
 
-                    // calculate linear and angular velocities
-                    auto posVec = tf::Transform(tf::Quaternion(lastToLastMsgs[msg.first]->pos[0].qx,
-                                                               lastToLastMsgs[msg.first]->pos[0].qy,
-                                                               lastToLastMsgs[msg.first]->pos[0].qz,
-                                                               lastToLastMsgs[msg.first]->pos[0].qw),
-                                                tf::Vector3(lastToLastMsgs[msg.first]->pos[0].x,
-                                                            lastToLastMsgs[msg.first]->pos[0].y,
-                                                            lastToLastMsgs[msg.first]->pos[0].z))
-                        .inverse()({msg.second->pos[0].x, msg.second->pos[0].y, msg.second->pos[0].z});
+                    // put some covariance in human positions
+                    for(int index = 0; index < 6; index++)
+                    {
+                        person.pose.covariance[index * 6 + index] = 0.1;
+                    }
 
-                    double roll, pitch, yaw;
+                    // calculate linear and angular velocities
+                    tf::Vector3 position_diff(msg.second->pos[0].x - lastToLastMsgs[msg.first]->pos[0].x,
+                                              msg.second->pos[0].y - lastToLastMsgs[msg.first]->pos[0].y,
+                                              msg.second->pos[0].z - lastToLastMsgs[msg.first]->pos[0].z);
+
+                    double roll_diff, pitch_diff, yaw_diff;
                     tf::Matrix3x3(tf::Quaternion(lastToLastMsgs[msg.first]->pos[0].qx,
-                                                                lastToLastMsgs[msg.first]->pos[0].qy,
-                                                                lastToLastMsgs[msg.first]->pos[0].qz,
-                                                                lastToLastMsgs[msg.first]->pos[0].qw)
-                                                 .inverse() * tf::Quaternion(msg.second->pos[0].qx,
-                                                                             msg.second->pos[0].qy,
-                                                                             msg.second->pos[0].qz,
-                                                                             msg.second->pos[0].qw))
-                        .getRPY(roll, pitch, yaw);
+                                                 lastToLastMsgs[msg.first]->pos[0].qy,
+                                                 lastToLastMsgs[msg.first]->pos[0].qz,
+                                                 lastToLastMsgs[msg.first]->pos[0].qw)
+                                .inverse() * tf::Quaternion(msg.second->pos[0].qx,
+                                                            msg.second->pos[0].qy,
+                                                            msg.second->pos[0].qz,
+                                                            msg.second->pos[0].qw))
+                                .getRPY(roll_diff, pitch_diff, yaw_diff);
 
                     auto dt = (ros::Time(msg.second->ts.sec, msg.second->ts.nsec) -
                            ros::Time(lastToLastMsgs[msg.first]->ts.sec,
                                      lastToLastMsgs[msg.first]->ts.nsec)).toSec();
-                    person.twist.twist.linear.x = posVec[0] / dt;
-                    person.twist.twist.linear.y = posVec[1] / dt;
-                    person.twist.twist.linear.z = posVec[2] / dt;
-                    person.twist.twist.angular.x = roll / dt;
-                    person.twist.twist.angular.y = pitch / dt;
-                    person.twist.twist.angular.z = yaw / dt;
+                    person.twist.twist.linear.x = position_diff[0] / dt;
+                    person.twist.twist.linear.y = position_diff[1] / dt;
+                    person.twist.twist.linear.z = position_diff[2] / dt;
+                    person.twist.twist.angular.x = roll_diff / dt;
+                    person.twist.twist.angular.y = pitch_diff / dt;
+                    person.twist.twist.angular.z = yaw_diff / dt;
 
                     trackedHumans->tracks.push_back(person);
                 }
