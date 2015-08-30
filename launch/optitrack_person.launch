@@ -5,12 +5,20 @@
     <!-- env name="ROSCONSOLE_CONFIG_FILE" value="$(find optitrack_person)/launch/custom_rosconsole.conf"/-->
 
     <!--  add static transform publisher  -->
-    <node pkg="tf" type="static_transform_publisher" name="optitrack_link" args="0 0 0 0 0 0 /map /optitrack 100"/>
+    <!-- <node pkg="tf" type="static_transform_publisher" name="optitrack_link" args="0 0 0 0 0 0 /map /optitrack 100"/> -->
+
+    <!-- start optitrack -->
+    <arg name="optitrack" default="true"/>
+    <group if="$(arg optitrack)">
+        <include file="$(find optitrack_person)/launch/optitrack.launch">
+            <arg name="mcast" value="$(arg mcast))" />
+        </include>
+    </group>
 
     <!--  start optitrack_person  -->
-    <!--  <param name="topic_base" type="str" value="/optitrack/bodies/person" />  -->
-    <!--  <param name="published_topic" type="str" value="tracked_persons" />  -->
-    <!--  <param name="optitrack_frame_id" type="str" value="optitrack" />  -->
-    <param name="publish_rate" type="int" value="10" />
+    <!--  <param name="topic_base" type="str" value="/optitrack/bodies/person"/>  -->
+    <!--  <param name="published_topic" type="str" value="tracked_persons"/>  -->
+    <!--  <param name="optitrack_frame_id" type="str" value="optitrack"/>  -->
+    <param name="publish_rate" type="int" value="10"/>
     <node pkg="optitrack_person" type="optitrack_person_node" name="optitrack_person_node" output="screen" required="true"/>
 </launch>
