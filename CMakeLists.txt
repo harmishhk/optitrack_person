@@ -18,8 +18,6 @@ set(MSG_DEP_SET
 
 set(MSG_FILES
   # these messages are copied from optitrack_genom, becasue optitrack_genom is built as a dry package
-  or_pose_estimator_motion.msg
-  or_pose_estimator_reference.msg
   or_pose_estimator_state.msg
   or_t3d_acc_cov.msg
   or_t3d_acc.msg

@@ -1,7 +1,6 @@
 # IDL struct ::or_pose_estimator::state
 or_time_ts ts
-or_pose_estimator_reference ref
-or_pose_estimator_motion model
+bool intrinsic
 or_t3d_pos[] pos
 or_t3d_pos_cov[] pos_cov
 or_t3d_vel[] vel
