@@ -11,7 +11,7 @@
     <arg name="optitrack" default="true"/>
     <group if="$(arg optitrack)">
         <include file="$(find optitrack_person)/launch/optitrack.launch">
-            <arg name="mcast" value="$(arg mcast))" />
+            <arg name="mcast" value="$(arg mcast)" />
         </include>
     </group>
 
