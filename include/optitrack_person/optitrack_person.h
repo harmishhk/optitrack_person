@@ -49,10 +49,18 @@ class OptitrackPerson
 
     // helper variables
     ros::master::V_TopicInfo topics;
+    double dt; //delta time
     std::map<int, optitrack_person::or_pose_estimator_state::ConstPtr> lastMsgs;
     std::map<int, optitrack_person::or_pose_estimator_state::ConstPtr> lastToLastMsgs;
+    std::map<int, hanp_msgs::TrackedHuman*> lastState;
 
     uint64_t _track_id;
+
+    //helper functions
+    void registerPose(hanp_msgs::TrackedHuman &person, optitrack_person::or_pose_estimator_state::ConstPtr msg);
+    void processDeltaTime(int id, optitrack_person::or_pose_estimator_state::ConstPtr msg);
+    void processVelocity(hanp_msgs::TrackedHuman &person, int id, optitrack_person::or_pose_estimator_state::ConstPtr msg);
+    void processAcceleration(hanp_msgs::TrackedHuman &person, int id, optitrack_person::or_pose_estimator_state::ConstPtr msg);
 
     // function definitions
     bool getSubTopics(ros::master::V_TopicInfo& topics, const std::string& topic_base);
