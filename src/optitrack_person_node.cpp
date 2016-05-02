@@ -1,4 +1,4 @@
-/*/
+/*
  * Copyright (c) 2014 LAAS/CNRS
  * All rights reserved.
  *
@@ -28,7 +28,7 @@ publish_topic_(publish_topic), optitrack_frame_id_(optitrack_frame_id), publish_
     // wait if optitrack is not up
     while(!subscribeToTopics(subscribe_topic_base_))
     {
-        ROS_INFO_STREAM_NAMED(NODE_NAME, "waiting for optitrack data to be availabe");
+        ROS_INFO_STREAM_NAMED(NODE_NAME, "waiting for optitrack data to be available");
         sleep(1);
     }
     ROS_INFO_STREAM_NAMED(NODE_NAME, "optitrack data: OK");
@@ -137,7 +137,6 @@ void OptitrackPerson::person_callback(const optitrack_person::or_pose_estimator_
     }
 }
 
-
 bool OptitrackPerson::getSubTopics(ros::master::V_TopicInfo& topics, const std::string& topic_base)
 {
     ROS_DEBUG_STREAM_NAMED(NODE_NAME, "looking for \"" << topic_base << "\" string in all (" << topics.size() << ") topics");
@@ -177,51 +176,23 @@ void OptitrackPerson::publishPersons(const ros::TimerEvent& event)
                 if (msg.second->ts.sec != lastToLastMsgs[msg.first]->ts.sec
                     || msg.second->ts.nsec != lastToLastMsgs[msg.first]->ts.nsec)
                 {
-                    hanp_msgs::TrackedHuman person;
+                    hanp_msgs::TrackedHuman* person = new hanp_msgs::TrackedHuman();
 
                     // put optitrack data in to person
-                    person.track_id = msg.first;
-                    person.pose.pose.position.x = msg.second->pos[0].x;
-                    person.pose.pose.position.y = msg.second->pos[0].y;
-                    person.pose.pose.position.z = msg.second->pos[0].z;
-                    person.pose.pose.orientation.x = msg.second->pos[0].qx;
-                    person.pose.pose.orientation.y = msg.second->pos[0].qy;
-                    person.pose.pose.orientation.z = msg.second->pos[0].qz;
-                    person.pose.pose.orientation.w = msg.second->pos[0].qw;
+                    person->track_id = msg.first;
 
-                    // put some covariance in human positions
-                    for(int index = 0; index < 6; index++)
-                    {
-                        person.pose.covariance[index * 6 + index] = 0.1;
+                    processDeltaTime(msg.first,msg.second);
+
+                    registerPose(*person,msg.second);
+
+                    processVelocity(*person,msg.first,msg.second);
+
+                    if (lastState.count(msg.first)){
+                        processAcceleration(*person,msg.first,msg.second);
+                        trackedHumans->tracks.push_back(*person);
                     }
 
-                    // calculate linear and angular velocities
-                    tf::Vector3 position_diff(msg.second->pos[0].x - lastToLastMsgs[msg.first]->pos[0].x,
-                                              msg.second->pos[0].y - lastToLastMsgs[msg.first]->pos[0].y,
-                                              msg.second->pos[0].z - lastToLastMsgs[msg.first]->pos[0].z);
-
-                    double roll_diff, pitch_diff, yaw_diff;
-                    tf::Matrix3x3(tf::Quaternion(lastToLastMsgs[msg.first]->pos[0].qx,
-                                                 lastToLastMsgs[msg.first]->pos[0].qy,
-                                                 lastToLastMsgs[msg.first]->pos[0].qz,
-                                                 lastToLastMsgs[msg.first]->pos[0].qw)
-                                .inverse() * tf::Quaternion(msg.second->pos[0].qx,
-                                                            msg.second->pos[0].qy,
-                                                            msg.second->pos[0].qz,
-                                                            msg.second->pos[0].qw))
-                                .getRPY(roll_diff, pitch_diff, yaw_diff);
-
-                    auto dt = (ros::Time(msg.second->ts.sec, msg.second->ts.nsec) -
-                           ros::Time(lastToLastMsgs[msg.first]->ts.sec,
-                                     lastToLastMsgs[msg.first]->ts.nsec)).toSec();
-                    person.twist.twist.linear.x = position_diff[0] / dt;
-                    person.twist.twist.linear.y = position_diff[1] / dt;
-                    person.twist.twist.linear.z = position_diff[2] / dt;
-                    person.twist.twist.angular.x = roll_diff / dt;
-                    person.twist.twist.angular.y = pitch_diff / dt;
-                    person.twist.twist.angular.z = yaw_diff / dt;
-
-                    trackedHumans->tracks.push_back(person);
+                    lastState[msg.first] = person;
                 }
             }
             // save current values for future velocity calculation
@@ -239,9 +210,68 @@ void OptitrackPerson::publishPersons(const ros::TimerEvent& event)
     ROS_DEBUG_STREAM_NAMED(NODE_NAME, "published persons");
 }
 
+void OptitrackPerson::registerPose(hanp_msgs::TrackedHuman &person, optitrack_person::or_pose_estimator_state::ConstPtr msg){
+    person.pose.pose.position.x = msg->pos[0].x;
+    person.pose.pose.position.y = msg->pos[0].y;
+    person.pose.pose.position.z = msg->pos[0].z;
+    person.pose.pose.orientation.x = msg->pos[0].qx;
+    person.pose.pose.orientation.y = msg->pos[0].qy;
+    person.pose.pose.orientation.z = msg->pos[0].qz;
+    person.pose.pose.orientation.w = msg->pos[0].qw;
+
+    // put some covariance in human positions
+    for(int index = 0; index < 6; index++)
+        person.pose.covariance[index * 6 + index] = 0.1;
+}
+
+void OptitrackPerson::processDeltaTime(int id, optitrack_person::or_pose_estimator_state::ConstPtr msg){
+    dt = (ros::Time(msg->ts.sec, msg->ts.nsec) - ros::Time(lastToLastMsgs[id]->ts.sec,lastToLastMsgs[id]->ts.nsec)).toSec();
+}
+
+void OptitrackPerson::processVelocity(hanp_msgs::TrackedHuman &person, int id, optitrack_person::or_pose_estimator_state::ConstPtr msg){
+    tf::Vector3 position_diff(msg->pos[0].x - lastToLastMsgs[id]->pos[0].x,
+                              msg->pos[0].y - lastToLastMsgs[id]->pos[0].y,
+                              msg->pos[0].z - lastToLastMsgs[id]->pos[0].z);
+
+    double roll_diff, pitch_diff, yaw_diff;
+    tf::Matrix3x3(tf::Quaternion(lastToLastMsgs[id]->pos[0].qx,
+                                 lastToLastMsgs[id]->pos[0].qy,
+                                 lastToLastMsgs[id]->pos[0].qz,
+                                 lastToLastMsgs[id]->pos[0].qw)
+                .inverse() * tf::Quaternion(msg->pos[0].qx,
+                                            msg->pos[0].qy,
+                                            msg->pos[0].qz,
+                                            msg->pos[0].qw))
+                .getRPY(roll_diff, pitch_diff, yaw_diff);
+
+    person.twist.twist.linear.x = position_diff[0] / dt;
+    person.twist.twist.linear.y = position_diff[1] / dt;
+    person.twist.twist.linear.z = position_diff[2] / dt;
+    person.twist.twist.angular.x = roll_diff / dt;
+    person.twist.twist.angular.y = pitch_diff / dt;
+    person.twist.twist.angular.z = yaw_diff / dt;
+}
+
+void OptitrackPerson::processAcceleration(hanp_msgs::TrackedHuman &person, int id, optitrack_person::or_pose_estimator_state::ConstPtr msg){
+    tf::Vector3 lvelocity_diff(person.twist.twist.linear.x  - lastState[id]->twist.twist.linear.x,
+                               person.twist.twist.linear.y  - lastState[id]->twist.twist.linear.y,
+                               person.twist.twist.linear.z  - lastState[id]->twist.twist.linear.z);
+    tf::Vector3 avelocity_diff(person.twist.twist.angular.x - lastState[id]->twist.twist.angular.x,
+                               person.twist.twist.angular.y - lastState[id]->twist.twist.angular.y,
+                               person.twist.twist.angular.z - lastState[id]->twist.twist.angular.z);
+    //std::cerr << &person << "\t";
+    //std::cerr << lastState[id] << "\t";
+    //std::cerr << ((float) lvelocity_diff[0]) << std::endl;
+    person.accel.accel.linear.x = lvelocity_diff[0] / dt;
+    person.accel.accel.linear.y = lvelocity_diff[1] / dt;
+    person.accel.accel.linear.z = lvelocity_diff[2] / dt;
+    person.accel.accel.angular.x = avelocity_diff[0] / dt;
+    person.accel.accel.angular.y = avelocity_diff[1] / dt;
+    person.accel.accel.angular.z = avelocity_diff[2] / dt;
+}
+
 // handler for something to do before killing the node
-void sigintHandler(int sig)
-{
+void sigintHandler(int sig){
     ROS_DEBUG_STREAM_NAMED(NODE_NAME, "node will now shutdown");
 
     // the default sigint handler, it calls shutdown() on node
@@ -249,8 +279,7 @@ void sigintHandler(int sig)
 }
 
 // the main method starts a rosnode and initializes the optotrack_person class
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv){
     // starting the optotrack_person node
     ros::init(argc, argv, NODE_NAME);
     ros::NodeHandle nh;
