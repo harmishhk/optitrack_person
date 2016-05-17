@@ -50,17 +50,31 @@ class OptitrackPerson
     // helper variables
     ros::master::V_TopicInfo topics;
     double dt; //delta time
-    std::map<int, optitrack_person::or_pose_estimator_state::ConstPtr> lastMsgs;
-    std::map<int, optitrack_person::or_pose_estimator_state::ConstPtr> lastToLastMsgs;
-    std::map<int, hanp_msgs::TrackedHuman*> lastState;
+
+    typedef std::map<std::string, optitrack_person::or_pose_estimator_state::ConstPtr> RawHumans;
+    typedef std::map<std::string, hanp_msgs::BodySegment> LastSegments;
+
+    std::map<int, RawHumans> raw_messages;
+    std::map<int, RawHumans> last_raw_messages;
+    //std::map<int, hanp_msgs::TrackedHuman*> lastState;
+    std::map<int, LastSegments> lastStates;
 
     uint64_t _track_id;
 
     //helper functions
-    void registerPose(hanp_msgs::TrackedHuman &person, optitrack_person::or_pose_estimator_state::ConstPtr msg);
-    void processDeltaTime(int id, optitrack_person::or_pose_estimator_state::ConstPtr msg);
-    void processVelocity(hanp_msgs::TrackedHuman &person, int id, optitrack_person::or_pose_estimator_state::ConstPtr msg);
-    void processAcceleration(hanp_msgs::TrackedHuman &person, int id, optitrack_person::or_pose_estimator_state::ConstPtr msg);
+    void registerPose(hanp_msgs::BodySegment &segment,
+                      optitrack_person::or_pose_estimator_state::ConstPtr msg);
+    void processDeltaTime(const int id,
+                          const std::string segment_name,
+                          optitrack_person::or_pose_estimator_state::ConstPtr msg);
+    void processVelocity(hanp_msgs::BodySegment &segment,
+                         const int id,
+                         const std::string segment_name,
+                         optitrack_person::or_pose_estimator_state::ConstPtr msg);
+    void processAcceleration(hanp_msgs::BodySegment &segment,
+                             const int id,
+                             const std::string segment_name,
+                             optitrack_person::or_pose_estimator_state::ConstPtr msg);
 
     // function definitions
     bool getSubTopics(ros::master::V_TopicInfo& topics, const std::string& topic_base);
@@ -68,5 +82,7 @@ class OptitrackPerson
     bool subscribeToTopics(std::string topic_base);
     void publishPersons(const ros::TimerEvent& event);
 
-    void person_callback(const optitrack_person::or_pose_estimator_state::ConstPtr& msg, const int id);
+    void person_callback(const optitrack_person::or_pose_estimator_state::ConstPtr& msg,
+                         const int id,
+                         const std::string segment_name);
 };

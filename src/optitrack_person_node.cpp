@@ -68,7 +68,7 @@ OptitrackPerson::~OptitrackPerson()
 
 bool OptitrackPerson::subscribeToTopics(std::string topic_base)
 {
-    bool result = false;
+    bool isError = false,result = false;
 
     // get all topics from master
     if (ros::master::getTopics(topics))
@@ -79,29 +79,34 @@ bool OptitrackPerson::subscribeToTopics(std::string topic_base)
             // create subscriber for each topic
             for (auto topic : topics)
             {
-                int id;
-                // get id from the topic name
-                bool isError;
-                try
-                {
-                    isError = ! (std::istringstream(topic.name.substr(topic.name.size()-2, 2)) >> id);
-                }
-                catch (...)
-                {
+                int id = -1;
+                isError = false;
+                char segment_[256] = "";
+                std::string segment_name;
+                // get id and segment_name from the topic name
+                try{
+                    std::string topic_name = topic.name.substr(topic.name.find("person"),topic.name.length());
+                    std::cout << topic_name << std::endl;
+                    sscanf(topic_name.c_str(),"person_%d_%s",&id,segment_);
+                    segment_name = std::string(segment_);
+                    std::cout << id;
+                    std::cout << "\t" << segment_name.empty();
+                    if ((id == -1) || segment_name.empty())
+                        isError = true;
+                }catch (...){
                     isError = true;
                 }
 
-                // ignore the topic if no id found
-                if ( isError )
-                {
-                    ROS_ERROR_STREAM_NAMED(NODE_NAME, "cannot find an id in topic: " << topic.name);
+                // ignore the topic if doesn't match the expected pattern
+                if ( isError ){
+                    ROS_ERROR_STREAM_NAMED(NODE_NAME, "pattern doesn't match 'person_<id>_<segment>' in topic: " << topic.name);
                     continue;
                 }
 
-                subs.push_back(nh_.subscribe<optitrack_person::or_pose_estimator_state>(topic.name, 1, boost::bind(&OptitrackPerson::person_callback, this, _1, id)));
+                subs.push_back(nh_.subscribe<optitrack_person::or_pose_estimator_state>(topic.name, 1, boost::bind(&OptitrackPerson::person_callback, this, _1, id,segment_name)));
 
                 // make map of id of last messages with empty pointers
-                lastMsgs[id] = optitrack_person::or_pose_estimator_state::ConstPtr();
+                //raw_messages[id][segment_name] = optitrack_person::or_pose_estimator_state::ConstPtr();
 
                 ROS_DEBUG_STREAM_NAMED(NODE_NAME, "created subscriber for topic: " << topic.name);
 
@@ -122,18 +127,18 @@ bool OptitrackPerson::subscribeToTopics(std::string topic_base)
 }
 
 // callback for the optitrack body
-void OptitrackPerson::person_callback(const optitrack_person::or_pose_estimator_state::ConstPtr& msg, const int id)
+void OptitrackPerson::person_callback(const optitrack_person::or_pose_estimator_state::ConstPtr& msg, const int id, const std::string segment_name)
 {
     if (msg->pos.size() != 0)
     {
         // update the map of pointers with latest pointer
         // since the id is same everywhere this will not insert new value in the map
-        lastMsgs[id] = msg;
-        ROS_DEBUG_STREAM_NAMED(NODE_NAME, "found person " << id);
+        raw_messages[id][segment_name] = msg;
+        ROS_DEBUG_STREAM_NAMED(NODE_NAME, "found segment " << segment_name << " of person " << id);
     }
     else
     {
-        ROS_DEBUG_STREAM_NAMED(NODE_NAME, "person " << id << " lost");
+        ROS_DEBUG_STREAM_NAMED(NODE_NAME, "segment" << segment_name << " of person " << id << " lost");
     }
 }
 
@@ -157,130 +162,132 @@ bool OptitrackPerson::getSubTopics(ros::master::V_TopicInfo& topics, const std::
     return true;
 }
 
+
 void OptitrackPerson::publishPersons(const ros::TimerEvent& event)
 {
-    // create trackedHumans message, on the heap
-    auto trackedHumans = new hanp_msgs::TrackedHumans();
+    // create trackedHumans message
+    hanp_msgs::TrackedHumans trackedHumans;
 
-    // loop through all messages in lastMsgs map
-    for (auto msg : lastMsgs)
-    {
-        // check if the pointer is not null
-        if (msg.second)
-        {
-            // discard this reading if we received this person for the first time
-            // (for proper velocity calculations)
-            if (lastToLastMsgs.count(msg.first) != 0)
-            {
-                // proceed only if we've received any new data about this person
-                if (msg.second->ts.sec != lastToLastMsgs[msg.first]->ts.sec
-                    || msg.second->ts.nsec != lastToLastMsgs[msg.first]->ts.nsec)
+    // loop through all messages in raw_messages map
+    for (auto human : raw_messages){
+        hanp_msgs::TrackedHuman person;
+        person.track_id = human.first;
+
+        // loop through all segments of current human
+        for(auto segment : human.second){
+            // check if the pointer is not null
+            if (segment.second){
+                // discard this reading if we received this person for the first time (for proper velocity calculations)
+                if (last_raw_messages.count(human.first) && last_raw_messages[human.first].count(segment.first))
                 {
-                    hanp_msgs::TrackedHuman* person = new hanp_msgs::TrackedHuman();
+                    // proceed only if we've received any new data about this person
+                    if (segment.second->ts.sec != last_raw_messages[human.first][segment.first]->ts.sec
+                            || segment.second->ts.nsec != last_raw_messages[human.first][segment.first]->ts.nsec){
 
-                    // put optitrack data in to person
-                    person->track_id = msg.first;
+                        hanp_msgs::BodySegment body_segment;
 
-                    processDeltaTime(msg.first,msg.second);
-
-                    registerPose(*person,msg.second);
-
-                    processVelocity(*person,msg.first,msg.second);
-
-                    if (lastState.count(msg.first)){
-                        processAcceleration(*person,msg.first,msg.second);
-                        trackedHumans->tracks.push_back(*person);
+                        // put optitrack data in to person
+                        body_segment.name = segment.first;
+                        processDeltaTime(human.first,segment.first,segment.second);
+                        registerPose(body_segment,segment.second);
+                        processVelocity(body_segment,human.first, segment.first,segment.second);
+                        if (lastStates.count(human.first) && lastStates[human.first].count(segment.first)){
+                            processAcceleration(body_segment,human.first,segment.first,segment.second);
+                            person.segments.push_back(body_segment);
+                        }
+                        lastStates[human.first][segment.first] = body_segment;
                     }
-
-                    lastState[msg.first] = person;
                 }
+                // save current values for future velocity calculation
+                last_raw_messages[human.first][segment.first] = segment.second;
             }
-            // save current values for future velocity calculation
-            lastToLastMsgs[msg.first] = msg.second;
         }
+        trackedHumans.tracks.push_back(person);
     }
-
     // add the header
-    trackedHumans->header.stamp = ros::Time::now();
-    trackedHumans->header.frame_id = optitrack_frame_id_;
+    trackedHumans.header.stamp = ros::Time::now();
+    trackedHumans.header.frame_id = optitrack_frame_id_;
 
     // publish the trackedHumans message
-    pub.publish(*trackedHumans);
+    pub.publish(trackedHumans);
 
     ROS_DEBUG_STREAM_NAMED(NODE_NAME, "published persons");
 }
 
-void OptitrackPerson::registerPose(hanp_msgs::TrackedHuman &person, optitrack_person::or_pose_estimator_state::ConstPtr msg){
-    person.pose.pose.position.x = msg->pos[0].x;
-    person.pose.pose.position.y = msg->pos[0].y;
-    person.pose.pose.position.z = msg->pos[0].z;
-    person.pose.pose.orientation.x = msg->pos[0].qx;
-    person.pose.pose.orientation.y = msg->pos[0].qy;
-    person.pose.pose.orientation.z = msg->pos[0].qz;
-    person.pose.pose.orientation.w = msg->pos[0].qw;
+void OptitrackPerson::registerPose(hanp_msgs::BodySegment &segment, optitrack_person::or_pose_estimator_state::ConstPtr msg){
+    segment.pose.pose.position.x = msg->pos[0].x;
+    segment.pose.pose.position.y = msg->pos[0].y;
+    segment.pose.pose.position.z = msg->pos[0].z;
+    segment.pose.pose.orientation.x = msg->pos[0].qx;
+    segment.pose.pose.orientation.y = msg->pos[0].qy;
+    segment.pose.pose.orientation.z = msg->pos[0].qz;
+    segment.pose.pose.orientation.w = msg->pos[0].qw;
 
-    // put some covariance in human positions
+
+    /* not needed for PR2 => // put some covariance in human positions
     for(int index = 0; index < 6; index++)
-        person.pose.covariance[index * 6 + index] = 0.1;
+        person.pose.covariance[index * 6 + index] = 0.1;*/
 }
 
-void OptitrackPerson::processDeltaTime(int id, optitrack_person::or_pose_estimator_state::ConstPtr msg){
-    dt = (ros::Time(msg->ts.sec, msg->ts.nsec) - ros::Time(lastToLastMsgs[id]->ts.sec,lastToLastMsgs[id]->ts.nsec)).toSec();
+void OptitrackPerson::processDeltaTime(int id, std::string segment_name, optitrack_person::or_pose_estimator_state::ConstPtr msg){
+    dt = (ros::Time(msg->ts.sec, msg->ts.nsec) - ros::Time(last_raw_messages[id][segment_name]->ts.sec,last_raw_messages[id][segment_name]->ts.nsec)).toSec();
 }
 
-void OptitrackPerson::processVelocity(hanp_msgs::TrackedHuman &person, int id, optitrack_person::or_pose_estimator_state::ConstPtr msg){
-    tf::Vector3 position_diff(msg->pos[0].x - lastToLastMsgs[id]->pos[0].x,
-                              msg->pos[0].y - lastToLastMsgs[id]->pos[0].y,
-                              msg->pos[0].z - lastToLastMsgs[id]->pos[0].z);
+void OptitrackPerson::processVelocity(hanp_msgs::BodySegment &segment, int id, std::string segment_name, optitrack_person::or_pose_estimator_state::ConstPtr msg){
+    tf::Vector3 position_diff(msg->pos[0].x - last_raw_messages[id][segment_name]->pos[0].x,
+                              msg->pos[0].y - last_raw_messages[id][segment_name]->pos[0].y,
+                              msg->pos[0].z - last_raw_messages[id][segment_name]->pos[0].z);
 
     double roll_diff, pitch_diff, yaw_diff;
-    tf::Matrix3x3(tf::Quaternion(lastToLastMsgs[id]->pos[0].qx,
-                                 lastToLastMsgs[id]->pos[0].qy,
-                                 lastToLastMsgs[id]->pos[0].qz,
-                                 lastToLastMsgs[id]->pos[0].qw)
+    tf::Matrix3x3(tf::Quaternion(last_raw_messages[id][segment_name]->pos[0].qx,
+                                 last_raw_messages[id][segment_name]->pos[0].qy,
+                                 last_raw_messages[id][segment_name]->pos[0].qz,
+                                 last_raw_messages[id][segment_name]->pos[0].qw)
                 .inverse() * tf::Quaternion(msg->pos[0].qx,
                                             msg->pos[0].qy,
                                             msg->pos[0].qz,
                                             msg->pos[0].qw))
                 .getRPY(roll_diff, pitch_diff, yaw_diff);
 
-    person.twist.twist.linear.x = position_diff[0] / dt;
-    person.twist.twist.linear.y = position_diff[1] / dt;
-    person.twist.twist.linear.z = position_diff[2] / dt;
-    person.twist.twist.angular.x = roll_diff / dt;
-    person.twist.twist.angular.y = pitch_diff / dt;
-    person.twist.twist.angular.z = yaw_diff / dt;
+    segment.twist.twist.linear.x = position_diff[0] / dt;
+    segment.twist.twist.linear.y = position_diff[1] / dt;
+    segment.twist.twist.linear.z = position_diff[2] / dt;
+    segment.twist.twist.angular.x = roll_diff / dt;
+    segment.twist.twist.angular.y = pitch_diff / dt;
+    segment.twist.twist.angular.z = yaw_diff / dt;
 }
 
-void OptitrackPerson::processAcceleration(hanp_msgs::TrackedHuman &person, int id, optitrack_person::or_pose_estimator_state::ConstPtr msg){
-    tf::Vector3 lvelocity_diff(person.twist.twist.linear.x  - lastState[id]->twist.twist.linear.x,
-                               person.twist.twist.linear.y  - lastState[id]->twist.twist.linear.y,
-                               person.twist.twist.linear.z  - lastState[id]->twist.twist.linear.z);
-    tf::Vector3 avelocity_diff(person.twist.twist.angular.x - lastState[id]->twist.twist.angular.x,
-                               person.twist.twist.angular.y - lastState[id]->twist.twist.angular.y,
-                               person.twist.twist.angular.z - lastState[id]->twist.twist.angular.z);
-    //std::cerr << &person << "\t";
-    //std::cerr << lastState[id] << "\t";
-    //std::cerr << ((float) lvelocity_diff[0]) << std::endl;
-    person.accel.accel.linear.x = lvelocity_diff[0] / dt;
-    person.accel.accel.linear.y = lvelocity_diff[1] / dt;
-    person.accel.accel.linear.z = lvelocity_diff[2] / dt;
-    person.accel.accel.angular.x = avelocity_diff[0] / dt;
-    person.accel.accel.angular.y = avelocity_diff[1] / dt;
-    person.accel.accel.angular.z = avelocity_diff[2] / dt;
+
+void OptitrackPerson::processAcceleration(hanp_msgs::BodySegment &segment, int id, std::string segment_name, optitrack_person::or_pose_estimator_state::ConstPtr msg){
+    tf::Vector3 lvelocity_diff(segment.twist.twist.linear.x  - lastStates[id][segment_name].twist.twist.linear.x,
+                               segment.twist.twist.linear.y  - lastStates[id][segment_name].twist.twist.linear.y,
+                               segment.twist.twist.linear.z  - lastStates[id][segment_name].twist.twist.linear.z);
+    tf::Vector3 avelocity_diff(segment.twist.twist.angular.x - lastStates[id][segment_name].twist.twist.angular.x,
+                               segment.twist.twist.angular.y - lastStates[id][segment_name].twist.twist.angular.y,
+                               segment.twist.twist.angular.z - lastStates[id][segment_name].twist.twist.angular.z);
+
+    segment.accel.accel.linear.x = lvelocity_diff[0] / dt;
+    segment.accel.accel.linear.y = lvelocity_diff[1] / dt;
+    segment.accel.accel.linear.z = lvelocity_diff[2] / dt;
+    segment.accel.accel.angular.x = avelocity_diff[0] / dt;
+    segment.accel.accel.angular.y = avelocity_diff[1] / dt;
+    segment.accel.accel.angular.z = avelocity_diff[2] / dt;
 }
 
 // handler for something to do before killing the node
+
+
 void sigintHandler(int sig){
     ROS_DEBUG_STREAM_NAMED(NODE_NAME, "node will now shutdown");
-
     // the default sigint handler, it calls shutdown() on node
     ros::shutdown();
+    exit(sig); // necessary to interrupt during optitrackPerson initialisation
 }
 
-// the main method starts a rosnode and initializes the optotrack_person class
+
+// the main method starts a rosnode and initializes the optitrack_person class
 int main(int argc, char **argv){
-    // starting the optotrack_person node
+    // starting the optitrack_person node
     ros::init(argc, argv, NODE_NAME);
     ros::NodeHandle nh;
     ROS_DEBUG_STREAM_NAMED(NODE_NAME, "started " << NODE_NAME << " node");
@@ -293,11 +300,13 @@ int main(int argc, char **argv){
     nh.param<std::string>("optitrack_frame_id", optitrack_frame_id, OPTITRACK_FRAME);
     nh.param<int>("publish_rate", publish_rate, PUBLISH_RATE);
 
-    // initiazling OptitrackPerson class and passing the node handle to it
+    // look for sigint
+    signal(SIGINT, sigintHandler);
+
+    // initializing OptitrackPerson class and passing the node handle to it
     OptitrackPerson optitrackPerson(nh, subscribe_topic_base, publish_topic_name, optitrack_frame_id, publish_rate);
 
-    // look for sigint and start spinning the node
-    signal(SIGINT, sigintHandler);
+    //start spinning the node
     ros::spin();
 
     return 0;
