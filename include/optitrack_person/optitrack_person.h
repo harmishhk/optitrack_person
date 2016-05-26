@@ -27,6 +27,8 @@
 
 #include <optitrack_person/or_pose_estimator_state.h>
 #include <hanp_msgs/TrackedHumans.h>
+#include <hanp_msgs/TrackedSegment.h>
+#include <hanp_msgs/TrackedSegmentType.h>
 
 class OptitrackPerson
 {
@@ -51,29 +53,28 @@ class OptitrackPerson
     ros::master::V_TopicInfo topics;
     double dt; //delta time
 
-    typedef std::map<std::string, optitrack_person::or_pose_estimator_state::ConstPtr> RawHumans;
-    typedef std::map<std::string, hanp_msgs::BodySegment> LastSegments;
+    typedef std::map<int, optitrack_person::or_pose_estimator_state::ConstPtr> RawHumans;
+    typedef std::map<int, hanp_msgs::TrackedSegment> LastSegments;
 
     std::map<int, RawHumans> raw_messages;
     std::map<int, RawHumans> last_raw_messages;
-    //std::map<int, hanp_msgs::TrackedHuman*> lastState;
     std::map<int, LastSegments> lastStates;
 
     uint64_t _track_id;
 
     //helper functions
-    void registerPose(hanp_msgs::BodySegment &segment,
+    void registerPose(hanp_msgs::TrackedSegment &segment,
                       optitrack_person::or_pose_estimator_state::ConstPtr msg);
     void processDeltaTime(const int id,
-                          const std::string segment_name,
+                          const int segment_type,
                           optitrack_person::or_pose_estimator_state::ConstPtr msg);
-    void processVelocity(hanp_msgs::BodySegment &segment,
+    void processVelocity(hanp_msgs::TrackedSegment &segment,
                          const int id,
-                         const std::string segment_name,
+                         const int segment_type,
                          optitrack_person::or_pose_estimator_state::ConstPtr msg);
-    void processAcceleration(hanp_msgs::BodySegment &segment,
+    void processAcceleration(hanp_msgs::TrackedSegment &segment,
                              const int id,
-                             const std::string segment_name,
+                             const int segment_type,
                              optitrack_person::or_pose_estimator_state::ConstPtr msg);
 
     // function definitions
@@ -84,5 +85,5 @@ class OptitrackPerson
 
     void person_callback(const optitrack_person::or_pose_estimator_state::ConstPtr& msg,
                          const int id,
-                         const std::string segment_name);
+                         const int segment_name);
 };
