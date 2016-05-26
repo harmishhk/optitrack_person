@@ -17,10 +17,10 @@ In optitrack, you need to name your rigid bodies this way :
     and ```<segment>``` one of the following value :
     ``` "head","torso", "right_shoulder","right_elbow","right_wrist","right_hip","right_knee","right_ankle", "left_shoulder", "left_elbow", "left_wrist", "left_hip", "left_knee", "left_ankle" ```
 
-Then run the node:
-  > rosparam publish_rate <rate> with rate between 10 and 100.
-  
-  > rosrun optitrack_person optitrack_person_node
+Then run the node:   
+  ``` rosparam publish_rate <rate>``` with rate between 10 and 100.     
+  ``` rosparam mcast <ip_broadcast>```   
+  ``` rosrun optitrack_person optitrack_person_node ```
 
 You can also use the launch file:
     ```roslaunch optitrack_person optitrack_person.launch mcast:=239.192.168.30 publish_rate:=<rate>```     
