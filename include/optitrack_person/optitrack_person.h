@@ -35,7 +35,8 @@ class OptitrackPerson
     public:
     // constructor and destructor definitions
     OptitrackPerson(ros::NodeHandle& nh, std::string& topic_base,
-                    std::string& publish_topic, std::string& optitrack_frame_id, int publish_rate);
+                    std::string& publish_topic, std::string& optitrack_frame_id, int publish_rate,
+                    bool publish_markers, double human_radius);
     ~OptitrackPerson();
 
     private:
@@ -45,9 +46,12 @@ class OptitrackPerson
 
     std::vector<ros::Subscriber> subs;          // person subscribers for optitrack
     ros::Publisher pub;                         // publisher of built message
+    ros::Publisher marker_pub;
 
     ros::Timer publishTimer;                    // timer for periodic publishing of built message
     int publish_rate_;
+    bool publish_markers_;
+    double human_radius_;
 
     // helper variables
     ros::master::V_TopicInfo topics;

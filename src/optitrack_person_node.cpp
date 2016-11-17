@@ -15,15 +15,28 @@
  *                                  Harmish Khambhaita on Mon May 05 2014
  */
 
+#define PUBLISH_MARKERS true
+#define DEFAUTL_SEGMENT_TYPE hanp_msgs::TrackedSegmentType::TORSO
+#define HUMANS_ARROWS_ID_OFFSET 100
+#define HUMANS_CYLINDERS_HEIGHT 1.5
+#define HUMAN_COLOR_R 0.5
+#define HUMAN_COLOR_G 0.5
+#define HUMAN_COLOR_B 0.0
+#define MARKER_LIFETIME 4.0
+#define HUMAN_RADIUS 0.25 // m
+
 #include <signal.h>
 
 #include <optitrack_person/optitrack_person.h>
+#include <visualization_msgs/MarkerArray.h>
 
 // instantiate local variables
 OptitrackPerson::OptitrackPerson(ros::NodeHandle& nh, std::string& subscribe_topic_base,
-                                 std::string& publish_topic, std::string& optitrack_frame_id, int publish_rate) :
+                                 std::string& publish_topic, std::string& optitrack_frame_id,
+                                 int publish_rate, bool publish_markers, double human_radius) :
 nh_(nh), subscribe_topic_base_(subscribe_topic_base),
-publish_topic_(publish_topic), optitrack_frame_id_(optitrack_frame_id), publish_rate_(publish_rate)
+publish_topic_(publish_topic), optitrack_frame_id_(optitrack_frame_id), publish_rate_(publish_rate),
+publish_markers_(publish_markers), human_radius_(human_radius)
 {
     // wait if optitrack is not up
     while(!subscribeToTopics(subscribe_topic_base_))
@@ -40,6 +53,7 @@ publish_topic_(publish_topic), optitrack_frame_id_(optitrack_frame_id), publish_
     {
         // create publisher of type TrackedHuman
         pub = nh_.advertise<hanp_msgs::TrackedHumans>(full_publish_topic, 1);
+        marker_pub = nh_.advertise<visualization_msgs::MarkerArray>(full_publish_topic + "_markers", 1);
 
         // create a publish timer
         if(publish_rate_ > 0.0)
@@ -201,7 +215,9 @@ void OptitrackPerson::publishPersons(const ros::TimerEvent& event)
 {
     // create trackedHumans message
     hanp_msgs::TrackedHumans trackedHumans;
+    visualization_msgs::MarkerArray humans_markers;
 
+    auto now = ros::Time::now();
     // loop through all messages in raw_messages map
     for (auto human : raw_messages){
         hanp_msgs::TrackedHuman person;
@@ -228,6 +244,48 @@ void OptitrackPerson::publishPersons(const ros::TimerEvent& event)
                         if (lastStates.count(human.first) && lastStates[human.first].count(segment.first)){
                             processAcceleration(body_segment,human.first,segment.first,segment.second);
                             person.segments.push_back(body_segment);
+
+                            if (publish_markers_ && body_segment.type == DEFAUTL_SEGMENT_TYPE) {
+                                visualization_msgs::Marker human_arrow, human_cylinder;
+
+                                human_arrow.header.stamp = now;
+                                human_arrow.header.frame_id = optitrack_frame_id_;
+                                human_arrow.type = visualization_msgs::Marker::ARROW;
+                                human_arrow.action = visualization_msgs::Marker::MODIFY;
+                                human_arrow.id = human.first + HUMANS_ARROWS_ID_OFFSET;
+                                human_arrow.pose.position.x = body_segment.pose.pose.position.x;
+                                human_arrow.pose.position.y = body_segment.pose.pose.position.y;
+                                human_arrow.pose.orientation = tf::createQuaternionMsgFromYaw(tf::getYaw(body_segment.pose.pose.orientation));
+                                human_arrow.scale.x = human_radius_ * 2.0;
+                                human_arrow.scale.y = 0.1;
+                                human_arrow.scale.z = 0.1;
+                                human_arrow.color.a = 1.0;
+                                human_arrow.color.r = HUMAN_COLOR_R;
+                                human_arrow.color.g = HUMAN_COLOR_G;
+                                human_arrow.color.b = HUMAN_COLOR_B;
+                                human_arrow.lifetime = ros::Duration(MARKER_LIFETIME);
+
+                                human_cylinder.header.stamp = now;
+                                human_cylinder.header.frame_id = optitrack_frame_id_;
+                                human_cylinder.type = visualization_msgs::Marker::CYLINDER;
+                                human_cylinder.action = visualization_msgs::Marker::MODIFY;
+                                human_cylinder.id = human.first;
+                                human_cylinder.pose.position.x = body_segment.pose.pose.position.x;
+                                human_cylinder.pose.position.y = body_segment.pose.pose.position.y;
+                                human_cylinder.pose.position.z += (HUMANS_CYLINDERS_HEIGHT / 2);
+                                // human_cylinder.pose.orientation = body_segment.pose.orientation;
+                                human_cylinder.scale.x = human_radius_ * 2;
+                                human_cylinder.scale.y = human_radius_ * 2;
+                                human_cylinder.scale.z = HUMANS_CYLINDERS_HEIGHT;
+                                human_cylinder.color.a = 1.0;
+                                human_cylinder.color.r = HUMAN_COLOR_R;
+                                human_cylinder.color.g = HUMAN_COLOR_G;
+                                human_cylinder.color.b = HUMAN_COLOR_B;
+                                human_cylinder.lifetime = ros::Duration(MARKER_LIFETIME);
+
+                                humans_markers.markers.push_back(human_arrow);
+                                humans_markers.markers.push_back(human_cylinder);
+                            }
                         }
                         lastStates[human.first][segment.first] = body_segment;
                     }
@@ -239,11 +297,12 @@ void OptitrackPerson::publishPersons(const ros::TimerEvent& event)
         trackedHumans.humans.push_back(person);
     }
     // add the header
-    trackedHumans.header.stamp = ros::Time::now();
+    trackedHumans.header.stamp = now;
     trackedHumans.header.frame_id = optitrack_frame_id_;
 
     // publish the trackedHumans message
     pub.publish(trackedHumans);
+    marker_pub.publish(humans_markers);
 
     ROS_DEBUG_STREAM_NAMED(NODE_NAME, "published persons");
 }
@@ -328,16 +387,20 @@ int main(int argc, char **argv){
     // getting topic parameters
     std::string subscribe_topic_base, publish_topic_name, optitrack_frame_id;
     int publish_rate;
+    bool publish_markers;
+    double human_radius;
     nh.param<std::string>("topic_base", subscribe_topic_base, SUBSCRIBE_TOPIC_BASE);
     nh.param<std::string>("published_topic", publish_topic_name, PUBLISH_TOPIC_NAME);
     nh.param<std::string>("optitrack_frame_id", optitrack_frame_id, OPTITRACK_FRAME);
     nh.param<int>("publish_rate", publish_rate, PUBLISH_RATE);
+    nh.param<bool>("publish_markers", publish_markers, PUBLISH_MARKERS);
+    nh.param<double>("human_radius", human_radius, HUMAN_RADIUS);
 
     // look for sigint
     signal(SIGINT, sigintHandler);
 
     // initializing OptitrackPerson class and passing the node handle to it
-    OptitrackPerson optitrackPerson(nh, subscribe_topic_base, publish_topic_name, optitrack_frame_id, publish_rate);
+    OptitrackPerson optitrackPerson(nh, subscribe_topic_base, publish_topic_name, optitrack_frame_id, publish_rate, publish_markers, human_radius);
 
     //start spinning the node
     ros::spin();

@@ -13,6 +13,7 @@ set(ROS_DEPS
 set(MSG_DEP_SET
   geometry_msgs
   hanp_msgs
+  visualization_msgs
 #  optitrack
 )
 
